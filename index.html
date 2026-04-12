@@ -1211,62 +1211,6 @@
       <div id="navAuthArea"></div>
     </nav>
 
-    <!-- AUTH MODAL -->
-    <div class="modal-overlay" id="authModal">
-      <div class="modal">
-        <span class="modal-icon">🔑</span>
-        <h2>GitHub 로그인</h2>
-        <p>
-          GitHub Personal Access Token을 입력하면 글쓰기·수정·삭제 기능이
-          활성화됩니다.<br />토큰은 이 기기에만 저장되며 외부로 전송되지
-          않습니다.
-        </p>
-        <div class="modal-input-wrap">
-          <input
-            class="modal-input"
-            id="patInput"
-            type="password"
-            placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-            onkeydown="if (event.key === 'Enter') doLogin();"
-          />
-          <button
-            class="modal-eye"
-            id="eyeBtn"
-            onclick="togglePATVisibility()"
-            title="토큰 표시/숨기기"
-          >
-            <svg
-              id="eyeIcon"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </button>
-        </div>
-        <div class="modal-error" id="authError"></div>
-        <div class="modal-actions">
-          <button class="btn btn-ghost" onclick="closeAuthModal()">취소</button>
-          <button class="btn btn-primary" id="loginBtn" onclick="doLogin()">
-            확인 &amp; 로그인
-          </button>
-        </div>
-        <p class="modal-hint">
-          토큰 발급:
-          <a href="https://github.com/settings/tokens" target="_blank"
-            >github.com/settings/tokens</a
-          ><br />
-          권한: <strong>repo</strong> 또는 <strong>public_repo</strong> 범위만
-          선택하면 됩니다.
-        </p>
-      </div>
-    </div>
-
     <div class="layout">
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-section">
@@ -1676,7 +1620,7 @@
       </div>
       <button class="nav-btn primary" onclick="requireAuth(()=>switchPage('write'))" style="margin-left:4px">+ 글쓰기</button>`;
         } else {
-          area.innerHTML = `<button class="nav-btn" onclick="openAuthModal()">🔑 로그인</button>`;
+          area.innerHTML = `<button class="nav-btn" onclick="doLogin()">🔑 로그인</button>`;
         }
       }
 
