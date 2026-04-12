@@ -5,7 +5,7 @@
 
 backend:
   name: git-gateway          # Netlify Identity + Git Gateway 사용
-  branch: main               # 글이 저장될 브랜치 (main 또는 master)
+  branch: master               # 글이 저장될 브랜치 (main 또는 master)
 
 # 미디어 파일 (이미지 등) 저장 위치
 media_folder: "static/uploads"
