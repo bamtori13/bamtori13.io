@@ -1498,951 +1498,955 @@
     <div class="toast" id="toast"></div>
 
     <script>
-            // ── Pyodide 지연 로드 ──
-            let _pyReady = false,
-              _pyLoading = false,
-              _pyInst = null,
-              _pyCbs = [];
-            async function ensurePyodide() {
-              if (_pyReady) return _pyInst;
-              if (_pyLoading) return new Promise((r) => _pyCbs.push(r));
-              _pyLoading = true;
-              await new Promise((res, rej) => {
-                const s = document.createElement("script");
-                s.src = "https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js";
-                s.onload = res;
-                s.onerror = rej;
-                document.head.appendChild(s);
+      // ── Pyodide 지연 로드 ──
+      let _pyReady = false,
+        _pyLoading = false,
+        _pyInst = null,
+        _pyCbs = [];
+      async function ensurePyodide() {
+        if (_pyReady) return _pyInst;
+        if (_pyLoading) return new Promise((r) => _pyCbs.push(r));
+        _pyLoading = true;
+        await new Promise((res, rej) => {
+          const s = document.createElement("script");
+          s.src = "https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js";
+          s.onload = res;
+          s.onerror = rej;
+          document.head.appendChild(s);
+        });
+        _pyInst = await loadPyodide({
+          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.1/full/",
+        });
+        await _pyInst.loadPackage(["matplotlib", "numpy"]);
+        _pyReady = true;
+        _pyCbs.forEach((r) => r(_pyInst));
+        _pyCbs = [];
+        return _pyInst;
+      }
+
+      // ════════════════════════════════════════
+      // AUTH — GitHub Personal Access Token
+      // ════════════════════════════════════════
+      const AUTH_KEY = "blog_gh_pat";
+      const USER_KEY = "blog_gh_user";
+      let _ghUser = JSON.parse(sessionStorage.getItem(USER_KEY) || "null");
+
+      function isLoggedIn() {
+        return !!_ghUser;
+      }
+
+      // Verify PAT by calling GitHub API /user
+      async function verifyPAT(token) {
+        const res = await fetch("https://api.github.com/user", {
+          headers: {
+            Authorization: "token " + token,
+            "X-GitHub-Api-Version": "2022-11-28",
+          },
+        });
+        if (!res.ok)
+          throw new Error(
+            "토큰이 유효하지 않습니다 (status " + res.status + ")",
+          );
+        return res.json();
+      }
+
+      async function doLogin() {
+        if (window.netlifyIdentity) {
+          window.netlifyIdentity.on("init", (user) => {
+            if (!user) {
+              window.netlifyIdentity.on("login", () => {
+                document.location.href = "/admin/";
               });
-              _pyInst = await loadPyodide({
-                indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.1/full/",
-              });
-              await _pyInst.loadPackage(["matplotlib", "numpy"]);
-              _pyReady = true;
-              _pyCbs.forEach((r) => r(_pyInst));
-              _pyCbs = [];
-              return _pyInst;
             }
+          });
+        }
+      }
 
-            // ════════════════════════════════════════
-            // AUTH — GitHub Personal Access Token
-            // ════════════════════════════════════════
-            const AUTH_KEY = "blog_gh_pat";
-            const USER_KEY = "blog_gh_user";
-            let _ghUser = JSON.parse(sessionStorage.getItem(USER_KEY) || "null");
+      function doLogout() {
+        if (!confirm("로그아웃 하시겠어요?")) return;
+        sessionStorage.removeItem(AUTH_KEY);
+        sessionStorage.removeItem(USER_KEY);
+        _ghUser = null;
+        //renderNavAuth();
+        // If on write page, go back
+        const active = document.querySelector(".page.active");
+        if (active && active.id === "page-write") switchPage("list");
+        renderPosts();
+        toast("로그아웃 되었습니다.");
+      }
 
-            function isLoggedIn() {
-              return !!_ghUser;
-            }
+      function togglePATVisibility() {
+        const inp = document.getElementById("patInput");
+        const icon = document.getElementById("eyeIcon");
+        if (inp.type === "password") {
+          inp.type = "text";
+          icon.innerHTML =
+            '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+        } else {
+          inp.type = "password";
+          icon.innerHTML =
+            '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+        }
+      }
 
-            // Verify PAT by calling GitHub API /user
-            async function verifyPAT(token) {
-              const res = await fetch("https://api.github.com/user", {
-                headers: {
-                  Authorization: "token " + token,
-                  "X-GitHub-Api-Version": "2022-11-28",
-                },
-              });
-              if (!res.ok)
-                throw new Error(
-                  "토큰이 유효하지 않습니다 (status " + res.status + ")",
-                );
-              return res.json();
-            }
+      function renderNavAuth() {
+        const area = document.getElementById("navAuthArea");
+        if (isLoggedIn()) {
+          area.innerHTML = `
+      <div class="user-chip">
+        ${
+          _ghUser.avatar
+            ? `<img class="user-avatar" src="${_ghUser.avatar}&s=52" alt="${_ghUser.login}">`
+            : `<div class="user-avatar-placeholder">${_ghUser.login[0].toUpperCase()}</div>`
+        }
+        <span>${_ghUser.name}</span>
+        <button class="logout-btn" onclick="doLogout()" title="로그아웃">✕</button>
+      </div>
+      <button class="nav-btn primary" onclick="requireAuth(()=>switchPage('write'))" style="margin-left:4px">+ 글쓰기</button>`;
+        } else {
+          area.innerHTML = `<button class="nav-btn" onclick="doLogin()">🔑 로그인</button>`;
+        }
+      }
 
-            async function doLogin() {
-              if (window.netlifyIdentity) {
-                window.netlifyIdentity.on("init", (user) => {
-                  if (!user) {
-                    window.netlifyIdentity.on("login", () => {
-                      document.location.href = "/admin/";
-                    });
-                  }
-                });
-              }
-            }
+      // Guard function: require login before running action
+      function requireAuth(action) {
+        if (isLoggedIn()) {
+          action();
+        } else {
+          openAuthModal();
+        }
+      }
 
-            function doLogout() {
-              if (!confirm("로그아웃 하시겠어요?")) return;
-              sessionStorage.removeItem(AUTH_KEY);
-              sessionStorage.removeItem(USER_KEY);
-              _ghUser = null;
-              renderNavAuth();
-              // If on write page, go back
-              const active = document.querySelector(".page.active");
-              if (active && active.id === "page-write") switchPage("list");
-              renderPosts();
-              toast("로그아웃 되었습니다.");
-            }
+      // Wrap write-gated functions
+      const _origSwitchPage = switchPage;
+      // Override write page access
+      function guardedWrite() {
+        requireAuth(() => _origSwitchPage("write"));
+      }
 
-            function togglePATVisibility() {
-              const inp = document.getElementById("patInput");
-              const icon = document.getElementById("eyeIcon");
-              if (inp.type === "password") {
-                inp.type = "text";
-                icon.innerHTML =
-                  '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
-              } else {
-                inp.type = "password";
-                icon.innerHTML =
-                  '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
-              }
-            }
+      // ── Theme ──
+      let theme = localStorage.getItem("blog_theme") || "dark";
+      function applyTheme(t) {
+        document.documentElement.setAttribute("data-theme", t);
+        document.getElementById("themeBtn").textContent =
+          t === "dark" ? "🌙" : "☀️";
+        localStorage.setItem("blog_theme", t);
+      }
+      function toggleTheme() {
+        theme = theme === "dark" ? "light" : "dark";
+        applyTheme(theme);
+      }
+      applyTheme(theme);
 
-            function renderNavAuth() {
-              const area = document.getElementById("navAuthArea");
-              if (isLoggedIn()) {
-                area.innerHTML = `
-            <div class="user-chip">
-              ${
-                _ghUser.avatar
-                  ? `<img class="user-avatar" src="${_ghUser.avatar}&s=52" alt="${_ghUser.login}">`
-                  : `<div class="user-avatar-placeholder">${_ghUser.login[0].toUpperCase()}</div>`
-              }
-              <span>${_ghUser.name}</span>
-              <button class="logout-btn" onclick="doLogout()" title="로그아웃">✕</button>
-            </div>
+      // ── Data ──
+      const CAT_COLORS = {
+        개발: { bg: "rgba(124,108,255,0.12)", color: "#7c6cff" },
+        일상: { bg: "rgba(255,107,53,0.12)", color: "#ff6b35" },
+        독서: { bg: "rgba(32,178,140,0.12)", color: "#20b28c" },
+        여행: { bg: "rgba(255,180,50,0.12)", color: "#ffb432" },
+        기타: { bg: "rgba(150,150,170,0.12)", color: "#9696aa" },
+      };
+      // ── Posts state — loaded dynamically from _posts/*.md ──
+      let posts = [];
+      let currentCategory = "전체",
+        currentSearch = "",
+        currentView = "grid";
+      let currentPostId = null,
+        calYear,
+        calMonth,
+        prevPage = "list";
 
+      // ── Front-matter parser (YAML subset) ──
+      function parseFrontMatter(text) {
+        const m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+        if (!m) return { meta: {}, body: text };
+        const rawYaml = m[1];
+        const body = m[2].trim();
+        const meta = {};
+        // Parse simple key: value pairs
+        rawYaml.split("\n").forEach((line) => {
+          const kv = line.match(/^(\w+):\s*(.+)$/);
+          if (kv) {
+            let v = kv[2].trim().replace(/^["']|["']$/g, "");
+            if (v === "true") v = true;
+            else if (v === "false") v = false;
+            meta[kv[1]] = v;
+          }
+        });
+        // Parse tags list (YAML list format: "- tag")
+        const tagsBlock = rawYaml.match(/tags:[^\n]*\n((?:\s+-[^\n]+\n?)*)/);
+        if (tagsBlock) {
+          meta.tags =
+            tagsBlock[1]
+              .match(/^\s+-\s+(.+)$/gm)
+              ?.map((l) => l.replace(/^\s+-\s+/, "").trim()) || [];
+        }
+        if (!Array.isArray(meta.tags))
+          meta.tags = meta.tags ? [String(meta.tags)] : [];
+        return { meta, body };
+      }
 
-            // Guard function: require login before running action
-            function requireAuth(action) {
-              if (isLoggedIn()) {
-                action();
-              } else {
-                openAuthModal();
-              }
-            }
-
-            // Wrap write-gated functions
-            const _origSwitchPage = switchPage;
-            // Override write page access
-            function guardedWrite() {
-              requireAuth(() => _origSwitchPage("write"));
-            }
-
-            // ── Theme ──
-            let theme = localStorage.getItem("blog_theme") || "dark";
-            function applyTheme(t) {
-              document.documentElement.setAttribute("data-theme", t);
-              document.getElementById("themeBtn").textContent =
-                t === "dark" ? "🌙" : "☀️";
-              localStorage.setItem("blog_theme", t);
-            }
-            function toggleTheme() {
-              theme = theme === "dark" ? "light" : "dark";
-              applyTheme(theme);
-            }
-            applyTheme(theme);
-
-            // ── Data ──
-            const CAT_COLORS = {
-              개발: { bg: "rgba(124,108,255,0.12)", color: "#7c6cff" },
-              일상: { bg: "rgba(255,107,53,0.12)", color: "#ff6b35" },
-              독서: { bg: "rgba(32,178,140,0.12)", color: "#20b28c" },
-              여행: { bg: "rgba(255,180,50,0.12)", color: "#ffb432" },
-              기타: { bg: "rgba(150,150,170,0.12)", color: "#9696aa" },
-            };
-            // ── Posts state — loaded dynamically from _posts/*.md ──
-            let posts = [];
-            let currentCategory = "전체",
-              currentSearch = "",
-              currentView = "grid";
-            let currentPostId = null,
-              calYear,
-              calMonth,
-              prevPage = "list";
-
-            // ── Front-matter parser (YAML subset) ──
-            function parseFrontMatter(text) {
-              const m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-              if (!m) return { meta: {}, body: text };
-              const rawYaml = m[1];
-              const body = m[2].trim();
-              const meta = {};
-              // Parse simple key: value pairs
-              rawYaml.split("\n").forEach((line) => {
-                const kv = line.match(/^(\w+):\s*(.+)$/);
-                if (kv) {
-                  let v = kv[2].trim().replace(/^["']|["']$/g, "");
-                  if (v === "true") v = true;
-                  else if (v === "false") v = false;
-                  meta[kv[1]] = v;
-                }
-              });
-              // Parse tags list (YAML list format: "- tag")
-              const tagsBlock = rawYaml.match(/tags:[^\n]*\n((?:\s+-[^\n]+\n?)*)/);
-              if (tagsBlock) {
-                meta.tags =
-                  tagsBlock[1]
-                    .match(/^\s+-\s+(.+)$/gm)
-                    ?.map((l) => l.replace(/^\s+-\s+/, "").trim()) || [];
-              }
-              if (!Array.isArray(meta.tags))
-                meta.tags = meta.tags ? [String(meta.tags)] : [];
-              return { meta, body };
-            }
-
-            // ── Load all posts from _posts/ via manifest ──
-            async function loadPosts() {
+      // ── Load all posts from _posts/ via manifest ──
+      async function loadPosts() {
+        try {
+          let files = [];
+          const mRes = await fetch("/_posts/manifest.json?v=" + Date.now());
+          if (mRes.ok) {
+            files = await mRes.json(); // ["2026-04-12-foo.md", ...]
+          } else {
+            // Fallback list for local dev / first deploy
+            files = [
+              "2026-04-12-python-visualization.md",
+              "2026-04-10-github-pages-guide.md",
+            ];
+          }
+          const loaded = await Promise.all(
+            files.map(async (filename) => {
               try {
-                let files = [];
-                const mRes = await fetch("/_posts/manifest.json?v=" + Date.now());
-                if (mRes.ok) {
-                  files = await mRes.json(); // ["2026-04-12-foo.md", ...]
-                } else {
-                  // Fallback list for local dev / first deploy
-                  files = [
-                    "2026-04-12-python-visualization.md",
-                    "2026-04-10-github-pages-guide.md",
-                  ];
-                }
-                const loaded = await Promise.all(
-                  files.map(async (filename) => {
-                    try {
-                      const res = await fetch("/_posts/" + filename);
-                      if (!res.ok) return null;
-                      const { meta, body } = parseFrontMatter(await res.text());
-                      if (meta.draft === true) return null;
-                      return {
-                        id: filename.replace(".md", ""),
-                        title: meta.title || "제목 없음",
-                        category: meta.category || "기타",
-                        tags: meta.tags || [],
-                        summary: meta.summary || "",
-                        date: meta.date ? String(meta.date).slice(0, 10) : "",
-                        body,
-                        filename,
-                      };
-                    } catch {
-                      return null;
-                    }
-                  }),
-                );
-                posts = loaded
-                  .filter(Boolean)
-                  .sort((a, b) => b.date.localeCompare(a.date));
-              } catch (e) {
-                console.warn("loadPosts:", e);
-                posts = [];
-              }
-            }
-
-            // savePosts is a no-op — Netlify CMS writes markdown to GitHub directly
-            function savePosts() {
-              /* Netlify CMS → GitHub commit handles persistence */
-            }
-
-            // ── Markdown + Chart Renderer ──
-            let _chartCnt = 0;
-            function renderMd(text) {
-              if (!text) return "";
-              const charts = [];
-              const PH = "___CHART___";
-              // Extract python blocks before escaping
-              text = text.replace(/```python\n([\s\S]*?)```/g, (_, code) => {
-                charts.push(code);
-                return PH + (charts.length - 1) + PH;
-              });
-              let html = text
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
-              // Restore chart blocks
-              charts.forEach((code, i) => {
-                _chartCnt++;
-                const bid = "chart-" + _chartCnt;
-                const raw = code
-                  .replace(/&amp;/g, "&")
-                  .replace(/&lt;/g, "<")
-                  .replace(/&gt;/g, ">");
-                const disp = raw.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                window["__cc_" + bid] = raw;
-                html = html.replace(
-                  PH + i + PH,
-                  `<div class="chart-block" id="${bid}">
-              <div class="chart-block-header">
-                <span>🐍 python &nbsp;·&nbsp; matplotlib / numpy</span>
-                <button class="chart-run-btn" onclick="runChart('${bid}',this)">▶ 실행</button>
-              </div>
-              <div class="chart-code-area">${disp}</div>
-              <div class="chart-output" id="${bid}-out" style="display:none"></div>
-            </div>`,
-                );
-              });
-              // Other code blocks
-              html = html.replace(/```([\s\S]*?)```/g, "<pre><code>$1</code></pre>");
-              html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
-              html = html.replace(/^### (.+)$/gm, "<h3>$1</h3>");
-              html = html.replace(/^## (.+)$/gm, "<h2>$1</h2>");
-              html = html.replace(/^# (.+)$/gm, "<h2>$1</h2>");
-              html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-              html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
-              html = html.replace(/~~(.+?)~~/g, "<del>$1</del>");
-              html = html.replace(/^&gt; (.+)$/gm, "<blockquote>$1</blockquote>");
-              html = html.replace(/^\d+\. (.+)$/gm, "<li>$1</li>");
-              html = html.replace(/^[-*] (.+)$/gm, "<li>$1</li>");
-              html = html.replace(
-                /\[(.+?)\]\((.+?)\)/g,
-                '<a href="$2" target="_blank">$1</a>',
-              );
-              html = html.replace(/(<li>[\s\S]*?<\/li>)/g, "<ul>$1</ul>");
-              html = html.replace(/\n{2,}/g, "</p><p>").replace(/\n/g, "<br>");
-              if (!html.startsWith("<")) html = "<p>" + html + "</p>";
-              return html;
-            }
-
-            // ── Chart Runner ──
-            async function runChart(bid, btn) {
-              const code = window["__cc_" + bid];
-              if (!code) return;
-              const out = document.getElementById(bid + "-out");
-              out.style.display = "block";
-              out.innerHTML = `<div class="chart-loading"><div class="spinner"></div>Python 환경 초기화 중… (최초 실행 시 약 30초 소요)</div>`;
-              btn.disabled = true;
-              btn.textContent = "⏳ 로딩 중";
-              try {
-                const py = await ensurePyodide();
-                // Patch plt.show to output base64 PNG into the block's output div
-                await py.runPythonAsync(`
-      import sys,io,base64
-      import matplotlib
-      matplotlib.use('Agg')
-      import matplotlib.pyplot as plt
-
-      def _show(*a,**kw):
-          buf=io.BytesIO()
-          plt.savefig(buf,format='png',dpi=130,bbox_inches='tight')
-          buf.seek(0)
-          data=base64.b64encode(buf.read()).decode()
-          plt.close('all')
-          import js
-          el=js.document.getElementById('${bid}-out')
-          el.innerHTML='<img src="data:image/png;base64,'+data+'" alt="chart">'
-      plt.show=_show
-      `);
-                await py.runPythonAsync(code);
-                btn.textContent = "▶ 재실행";
-              } catch (e) {
-                out.innerHTML = `<div class="chart-error">❌ 오류: ${e.message || e}</div>`;
-                btn.textContent = "▶ 재시도";
-              }
-              btn.disabled = false;
-            }
-
-            // ── UI helpers ──
-            function toast(msg, type = "success") {
-              const t = document.getElementById("toast");
-              t.textContent = (type === "success" ? "✓ " : "✕ ") + msg;
-              t.className = `toast ${type} show`;
-              clearTimeout(t._t);
-              t._t = setTimeout(() => t.classList.remove("show"), 2800);
-            }
-            function toggleSidebar() {
-              document.getElementById("sidebar").classList.toggle("collapsed");
-              document.getElementById("main").classList.toggle("expanded");
-            }
-            function switchPage(page) {
-              if (page === "write" && !isLoggedIn()) {
-                openAuthModal();
-                return;
-              }
-              document
-                .querySelectorAll(".page")
-                .forEach((p) => p.classList.remove("active"));
-              document
-                .querySelectorAll(".tab")
-                .forEach((t) => t.classList.remove("active"));
-              document.getElementById("page-" + page).classList.add("active");
-              const tabs = document.querySelectorAll(".tab");
-              if (page === "list") tabs[0].classList.add("active");
-              if (page === "calendar") tabs[1].classList.add("active");
-              if (page === "calendar") renderCalendar();
-              if (page === "list") renderPosts();
-              if (page !== "post") prevPage = page === "write" ? prevPage : page;
-            }
-            function goHome() {
-              currentCategory = "전체";
-              currentSearch = "";
-              document.getElementById("searchInput").value = "";
-              switchPage("list");
-            }
-
-            // ── Sidebar ──
-            function updateSidebar() {
-              ["전체", "개발", "일상", "독서", "여행", "기타"].forEach((c) => {
-                const el = document.getElementById("cat-" + c);
-                const cnt = document.getElementById("cnt-" + c);
-                if (!el) return;
-                el.classList.toggle("active", currentCategory === c);
-                cnt.textContent =
-                  c === "전체"
-                    ? posts.length
-                    : posts.filter((p) => p.category === c).length;
-              });
-              const allTags = [...new Set(posts.flatMap((p) => p.tags || []))];
-              document.getElementById("tagCloud").innerHTML = allTags
-                .map(
-                  (t) =>
-                    `<span class="tag${currentSearch === t ? " active" : ""}" onclick="searchTag('${t}')">${t}</span>`,
-                )
-                .join("");
-              document.getElementById("statTotal").textContent = posts.length;
-              const mo = new Date().toISOString().slice(0, 7);
-              document.getElementById("statMonth").textContent = posts.filter((p) =>
-                p.date?.startsWith(mo),
-              ).length;
-              document.getElementById("statTags").textContent = allTags.length;
-            }
-            function filterCategory(cat) {
-              currentCategory = cat;
-              currentSearch = "";
-              document.getElementById("searchInput").value = "";
-              updateSidebar();
-              renderPosts();
-              switchPage("list");
-            }
-            function searchTag(tag) {
-              currentSearch = tag;
-              document.getElementById("searchInput").value = tag;
-              currentCategory = "전체";
-              updateSidebar();
-              renderPosts();
-              switchPage("list");
-            }
-
-            // ── List ──
-            function doSearch() {
-              currentSearch = document.getElementById("searchInput").value;
-              renderPosts();
-            }
-            function setView(v) {
-              currentView = v;
-              document
-                .getElementById("gridBtn")
-                .classList.toggle("active", v === "grid");
-              document
-                .getElementById("listBtn")
-                .classList.toggle("active", v === "list");
-              renderPosts();
-            }
-            function getFilteredPosts() {
-              let arr = [...posts];
-              if (currentCategory !== "전체")
-                arr = arr.filter((p) => p.category === currentCategory);
-              if (currentSearch) {
-                const q = currentSearch.toLowerCase();
-                arr = arr.filter(
-                  (p) =>
-                    p.title?.toLowerCase().includes(q) ||
-                    p.body?.toLowerCase().includes(q) ||
-                    p.summary?.toLowerCase().includes(q) ||
-                    p.tags?.some((t) => t.toLowerCase().includes(q)),
-                );
-              }
-              const s = document.getElementById("sortSelect").value;
-              if (s === "newest") arr.sort((a, b) => b.date?.localeCompare(a.date));
-              else if (s === "oldest")
-                arr.sort((a, b) => a.date?.localeCompare(b.date));
-              else arr.sort((a, b) => a.title?.localeCompare(b.title));
-              return arr;
-            }
-            function renderPosts() {
-              updateSidebar();
-              const arr = getFilteredPosts();
-              const grid = document.getElementById("postsGrid");
-              const info = document.getElementById("resultsInfo");
-              info.innerHTML = currentSearch
-                ? `<strong>${arr.length}</strong>개의 검색 결과 — "${currentSearch}"`
-                : `총 <strong>${arr.length}</strong>편의 글`;
-              if (!arr.length) {
-                grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div>🔍</div><p>조건에 맞는 글이 없어요.</p></div>`;
-                return;
-              }
-              grid.className = `posts-grid${currentView === "list" ? " list-view" : ""}`;
-              grid.innerHTML = arr
-                .map((p) => {
-                  const col = CAT_COLORS[p.category] || CAT_COLORS["기타"];
-                  return `<div class="post-card" onclick="openPost(${p.id})">
-            <div class="post-card-meta">
-              <span class="post-cat-badge" style="background:${col.bg};color:${col.color}">${p.category}</span>
-              <span class="post-date">${p.date || ""}</span>
-            </div>
-            <h3>${p.title}</h3>
-            <p>${p.summary || p.body?.replace(/[#*`>\n]/g, " ").slice(0, 120) + "…" || ""}</p>
-            ${p.tags?.length ? `<div class="post-tags">${p.tags.map((t) => `<span class="post-tag">${t}</span>`).join("")}</div>` : ""}
-          </div>`;
-                })
-                .join("");
-            }
-
-            // ── Post detail ──
-            function openPost(id) {
-              const p = posts.find((x) => x.id === id);
-              if (!p) return;
-              currentPostId = id;
-              const col = CAT_COLORS[p.category] || CAT_COLORS["기타"];
-              document.getElementById("postViewMeta").innerHTML =
-                `<span class="post-cat-badge" style="background:${col.bg};color:${col.color}">${p.category}</span>`;
-              document.getElementById("postViewTitle").textContent = p.title;
-              document.getElementById("postViewInfo").innerHTML =
-                `<span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text-muted)">${p.date}</span>
-           ${p.tags?.map((t) => `<span class="post-tag">${t}</span>`).join("") || ""}`;
-              document.getElementById("postViewBody").innerHTML = renderMd(
-                p.body || "",
-              );
-              document.getElementById("postViewActions").innerHTML = isLoggedIn()
-                ? `<button class="btn btn-edit" onclick="editPost(${id})">✏️ 수정</button>
-             <button class="btn btn-danger" onclick="deletePost(${id})">🗑️ 삭제</button>`
-                : "";
-              switchPage("post");
-            }
-            function backToList() {
-              switchPage(prevPage || "list");
-            }
-            function editPost(id) {
-              if (!isLoggedIn()) {
-                openAuthModal();
-                return;
-              }
-              const p = posts.find((x) => x.id === id);
-              if (!p) return;
-              document.getElementById("writeTitle").textContent = "글 수정";
-              // Store filename so savePost can update the right file
-              document.getElementById("editId").value = p.filename || id + ".md";
-              document.getElementById("fTitle").value = p.title;
-              document.getElementById("fCat").value = p.category;
-              document.getElementById("fTags").value = (p.tags || []).join(", ");
-              document.getElementById("fSummary").value = p.summary || "";
-              document.getElementById("fBody").value = p.body || "";
-              switchPage("write");
-            }
-            async function deletePost(id) {
-              if (!isLoggedIn()) {
-                openAuthModal();
-                return;
-              }
-              const p = posts.find((x) => x.id === id);
-              if (
-                !confirm(
-                  `"${p?.title || id}" 글을 삭제할까요?\nGitHub에서도 영구 삭제됩니다.`,
-                )
-              )
-                return;
-
-              const token = atob(sessionStorage.getItem(AUTH_KEY) || "");
-              const { repo, branch } = await getRepoInfo();
-              const filename = p?.filename || id + ".md";
-              const path = "_posts/" + filename;
-
-              const delBtn = document.querySelector("#postViewActions .btn-danger");
-              if (delBtn) {
-                delBtn.disabled = true;
-                delBtn.textContent = "삭제 중…";
-              }
-
-              try {
-                // Get SHA
-                const r = await fetch(
-                  `https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`,
-                  {
-                    headers: {
-                      Authorization: `token ${token}`,
-                      Accept: "application/vnd.github.v3+json",
-                    },
-                  },
-                );
-                if (!r.ok) throw new Error("파일을 찾을 수 없습니다");
-                const { sha } = await r.json();
-                // Delete file
-                const dr = await fetch(
-                  `https://api.github.com/repos/${repo}/contents/${path}`,
-                  {
-                    method: "DELETE",
-                    headers: {
-                      Authorization: `token ${token}`,
-                      "Content-Type": "application/json",
-                      Accept: "application/vnd.github.v3+json",
-                    },
-                    body: JSON.stringify({
-                      message: `글 삭제: ${p?.title || id}`,
-                      sha,
-                      branch,
-                    }),
-                  },
-                );
-                if (!dr.ok) {
-                  const e = await dr.json();
-                  throw new Error(e.message);
-                }
-                // Update manifest
-                await removeFromManifest(token, repo, branch, filename);
-                toast("글이 삭제되었습니다.");
-                setTimeout(async () => {
-                  await loadPosts();
-                  updateSidebar();
-                  backToList();
-                  renderPosts();
-                }, 1200);
-              } catch (e) {
-                toast("삭제 실패: " + e.message, "error");
-                if (delBtn) {
-                  delBtn.disabled = false;
-                  delBtn.textContent = "🗑️ 삭제";
-                }
-              }
-            }
-
-            async function removeFromManifest(token, repo, branch, filename) {
-              try {
-                const path = "_posts/manifest.json";
-                const res = await fetch(
-                  `https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`,
-                  { headers: { Authorization: `token ${token}` } },
-                );
-                if (!res.ok) return;
-                const d = await res.json();
-                const files = JSON.parse(atob(d.content.replace(/\n/g, ""))).filter(
-                  (f) => f !== filename,
-                );
-                await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
-                  method: "PUT",
-                  headers: {
-                    Authorization: `token ${token}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    message: "manifest 업데이트",
-                    content: btoa(JSON.stringify(files, null, 2)),
-                    sha: d.sha,
-                    branch,
-                  }),
-                });
-              } catch (e) {
-                console.warn("removeFromManifest:", e);
-              }
-            }
-
-            // ── Write ──
-            function cancelWrite() {
-              if (!isLoggedIn()) {
-                switchPage("list");
-                return;
-              }
-              switchPage(prevPage || "list");
-              resetForm();
-            }
-            function resetForm() {
-              document.getElementById("writeTitle").textContent = "새 글 작성";
-              document.getElementById("editId").value = "";
-              ["fTitle", "fTags", "fSummary", "fBody"].forEach(
-                (id) => (document.getElementById(id).value = ""),
-              );
-              document.getElementById("fCat").value = "개발";
-            }
-            async function savePost() {
-              if (!isLoggedIn()) {
-                openAuthModal();
-                return;
-              }
-              const title = document.getElementById("fTitle").value.trim();
-              const body = document.getElementById("fBody").value.trim();
-              if (!title) {
-                toast("제목을 입력해주세요.", "error");
-                return;
-              }
-              if (!body) {
-                toast("본문을 입력해주세요.", "error");
-                return;
-              }
-
-              const category = document.getElementById("fCat").value;
-              const tags = document
-                .getElementById("fTags")
-                .value.split(",")
-                .map((t) => t.trim())
-                .filter(Boolean);
-              const summary = document.getElementById("fSummary").value.trim();
-              const today = new Date().toISOString().split("T")[0];
-              const editId = document.getElementById("editId").value;
-
-              // Build markdown file content with front-matter
-              const tagYaml = tags.map((t) => `  - ${t}`).join("\n");
-              const markdown = `---\ntitle: "${title.replace(/"/g, '\\"')}"\ncategory: ${category}\ntags:\n${tagYaml}\nsummary: "${summary.replace(/"/g, '\\"')}"\ndate: "${today}"\ndraft: false\n---\n\n${body}`;
-
-              const token = atob(sessionStorage.getItem(AUTH_KEY) || "");
-              if (!token) {
-                openAuthModal();
-                return;
-              }
-
-              // Get repo info from config
-              const { repo, branch } = await getRepoInfo();
-              if (!repo) {
-                toast(
-                  "저장소 정보를 찾을 수 없습니다. admin/config.yml을 확인하세요.",
-                  "error",
-                );
-                return;
-              }
-
-              // Save button state
-              const saveBtn = document.querySelector("#page-write .btn-primary");
-              const origText = saveBtn?.textContent;
-              if (saveBtn) {
-                saveBtn.disabled = true;
-                saveBtn.textContent = "GitHub에 저장 중…";
-              }
-
-              try {
-                let filename, sha;
-                if (editId && editId.endsWith(".md")) {
-                  filename = editId.endsWith(".md") ? editId : editId + ".md";
-                } else {
-                  // New file: date-slug.md
-                  const slug = title
-                    .toLowerCase()
-                    .replace(/[^a-z0-9가-힣\s-]/g, "")
-                    .trim()
-                    .replace(/\s+/g, "-")
-                    .slice(0, 50);
-                  filename = `${today}-${slug || "post"}.md`;
-                }
-                const path = `_posts/${filename}`;
-
-                // Check if file exists (to get SHA for update)
-                const checkRes = await fetch(
-                  `https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`,
-                  {
-                    headers: {
-                      Authorization: `token ${token}`,
-                      Accept: "application/vnd.github.v3+json",
-                    },
-                  },
-                );
-                if (checkRes.ok) {
-                  const d = await checkRes.json();
-                  sha = d.sha;
-                }
-
-                // Create or update file
-                const payload = {
-                  message: sha ? `글 수정: ${title}` : `새 글: ${title}`,
-                  content: btoa(unescape(encodeURIComponent(markdown))),
-                  branch,
-                  ...(sha ? { sha } : {}),
-                };
-                const putRes = await fetch(
-                  `https://api.github.com/repos/${repo}/contents/${path}`,
-                  {
-                    method: "PUT",
-                    headers: {
-                      Authorization: `token ${token}`,
-                      "Content-Type": "application/json",
-                      Accept: "application/vnd.github.v3+json",
-                    },
-                    body: JSON.stringify(payload),
-                  },
-                );
-                if (!putRes.ok) {
-                  const err = await putRes.json();
-                  throw new Error(err.message || "GitHub 저장 실패");
-                }
-
-                // Update manifest
-                await updateManifest(token, repo, branch, filename, !!sha);
-
-                toast(
-                  sha
-                    ? "✓ GitHub에 수정되었습니다!"
-                    : "✓ GitHub에 새 글이 저장되었습니다!",
-                );
-                resetForm();
-
-                // Reload posts after short delay (GitHub needs a moment)
-                setTimeout(async () => {
-                  await loadPosts();
-                  updateSidebar();
-                  renderPosts();
-                  if (editId) {
-                    const updated = posts.find(
-                      (p) => p.id === filename.replace(".md", ""),
-                    );
-                    if (updated) openPost(updated.id);
-                    else switchPage("list");
-                  } else {
-                    switchPage("list");
-                  }
-                }, 1200);
-              } catch (e) {
-                toast("저장 실패: " + e.message, "error");
-              }
-              if (saveBtn) {
-                saveBtn.disabled = false;
-                saveBtn.textContent = origText;
-              }
-            }
-
-            async function getRepoInfo() {
-              try {
-                const cfgRes = await fetch("/admin/config.yml");
-                if (!cfgRes.ok) return { repo: null, branch: "master" };
-                const text = await cfgRes.text();
-                const repoMatch = text.match(/repo:\s*([^\n]+)/);
-                const branchMatch = text.match(/branch:\s*([^\n]+)/);
+                const res = await fetch("/_posts/" + filename);
+                if (!res.ok) return null;
+                const { meta, body } = parseFrontMatter(await res.text());
+                if (meta.draft === true) return null;
                 return {
-                  repo: repoMatch ? repoMatch[1].trim() : null,
-                  branch: branchMatch ? branchMatch[1].trim() : "master",
+                  id: filename.replace(".md", ""),
+                  title: meta.title || "제목 없음",
+                  category: meta.category || "기타",
+                  tags: meta.tags || [],
+                  summary: meta.summary || "",
+                  date: meta.date ? String(meta.date).slice(0, 10) : "",
+                  body,
+                  filename,
                 };
               } catch {
-                return { repo: null, branch: "master" };
+                return null;
               }
-            }
+            }),
+          );
+          posts = loaded
+            .filter(Boolean)
+            .sort((a, b) => b.date.localeCompare(a.date));
+        } catch (e) {
+          console.warn("loadPosts:", e);
+          posts = [];
+        }
+      }
 
-            async function updateManifest(
-              token,
-              repo,
+      // savePosts is a no-op — Netlify CMS writes markdown to GitHub directly
+      function savePosts() {
+        /* Netlify CMS → GitHub commit handles persistence */
+      }
+
+      // ── Markdown + Chart Renderer ──
+      let _chartCnt = 0;
+      function renderMd(text) {
+        if (!text) return "";
+        const charts = [];
+        const PH = "___CHART___";
+        // Extract python blocks before escaping
+        text = text.replace(/```python\n([\s\S]*?)```/g, (_, code) => {
+          charts.push(code);
+          return PH + (charts.length - 1) + PH;
+        });
+        let html = text
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        // Restore chart blocks
+        charts.forEach((code, i) => {
+          _chartCnt++;
+          const bid = "chart-" + _chartCnt;
+          const raw = code
+            .replace(/&amp;/g, "&")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">");
+          const disp = raw.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          window["__cc_" + bid] = raw;
+          html = html.replace(
+            PH + i + PH,
+            `<div class="chart-block" id="${bid}">
+        <div class="chart-block-header">
+          <span>🐍 python &nbsp;·&nbsp; matplotlib / numpy</span>
+          <button class="chart-run-btn" onclick="runChart('${bid}',this)">▶ 실행</button>
+        </div>
+        <div class="chart-code-area">${disp}</div>
+        <div class="chart-output" id="${bid}-out" style="display:none"></div>
+      </div>`,
+          );
+        });
+        // Other code blocks
+        html = html.replace(/```([\s\S]*?)```/g, "<pre><code>$1</code></pre>");
+        html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+        html = html.replace(/^### (.+)$/gm, "<h3>$1</h3>");
+        html = html.replace(/^## (.+)$/gm, "<h2>$1</h2>");
+        html = html.replace(/^# (.+)$/gm, "<h2>$1</h2>");
+        html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+        html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+        html = html.replace(/~~(.+?)~~/g, "<del>$1</del>");
+        html = html.replace(/^&gt; (.+)$/gm, "<blockquote>$1</blockquote>");
+        html = html.replace(/^\d+\. (.+)$/gm, "<li>$1</li>");
+        html = html.replace(/^[-*] (.+)$/gm, "<li>$1</li>");
+        html = html.replace(
+          /\[(.+?)\]\((.+?)\)/g,
+          '<a href="$2" target="_blank">$1</a>',
+        );
+        html = html.replace(/(<li>[\s\S]*?<\/li>)/g, "<ul>$1</ul>");
+        html = html.replace(/\n{2,}/g, "</p><p>").replace(/\n/g, "<br>");
+        if (!html.startsWith("<")) html = "<p>" + html + "</p>";
+        return html;
+      }
+
+      // ── Chart Runner ──
+      async function runChart(bid, btn) {
+        const code = window["__cc_" + bid];
+        if (!code) return;
+        const out = document.getElementById(bid + "-out");
+        out.style.display = "block";
+        out.innerHTML = `<div class="chart-loading"><div class="spinner"></div>Python 환경 초기화 중… (최초 실행 시 약 30초 소요)</div>`;
+        btn.disabled = true;
+        btn.textContent = "⏳ 로딩 중";
+        try {
+          const py = await ensurePyodide();
+          // Patch plt.show to output base64 PNG into the block's output div
+          await py.runPythonAsync(`
+import sys,io,base64
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+def _show(*a,**kw):
+    buf=io.BytesIO()
+    plt.savefig(buf,format='png',dpi=130,bbox_inches='tight')
+    buf.seek(0)
+    data=base64.b64encode(buf.read()).decode()
+    plt.close('all')
+    import js
+    el=js.document.getElementById('${bid}-out')
+    el.innerHTML='<img src="data:image/png;base64,'+data+'" alt="chart">'
+plt.show=_show
+`);
+          await py.runPythonAsync(code);
+          btn.textContent = "▶ 재실행";
+        } catch (e) {
+          out.innerHTML = `<div class="chart-error">❌ 오류: ${e.message || e}</div>`;
+          btn.textContent = "▶ 재시도";
+        }
+        btn.disabled = false;
+      }
+
+      // ── UI helpers ──
+      function toast(msg, type = "success") {
+        const t = document.getElementById("toast");
+        t.textContent = (type === "success" ? "✓ " : "✕ ") + msg;
+        t.className = `toast ${type} show`;
+        clearTimeout(t._t);
+        t._t = setTimeout(() => t.classList.remove("show"), 2800);
+      }
+      function toggleSidebar() {
+        document.getElementById("sidebar").classList.toggle("collapsed");
+        document.getElementById("main").classList.toggle("expanded");
+      }
+      function switchPage(page) {
+        if (page === "write" && !isLoggedIn()) {
+          openAuthModal();
+          return;
+        }
+        document
+          .querySelectorAll(".page")
+          .forEach((p) => p.classList.remove("active"));
+        document
+          .querySelectorAll(".tab")
+          .forEach((t) => t.classList.remove("active"));
+        document.getElementById("page-" + page).classList.add("active");
+        const tabs = document.querySelectorAll(".tab");
+        if (page === "list") tabs[0].classList.add("active");
+        if (page === "calendar") tabs[1].classList.add("active");
+        if (page === "calendar") renderCalendar();
+        if (page === "list") renderPosts();
+        if (page !== "post") prevPage = page === "write" ? prevPage : page;
+      }
+      function goHome() {
+        currentCategory = "전체";
+        currentSearch = "";
+        document.getElementById("searchInput").value = "";
+        switchPage("list");
+      }
+
+      // ── Sidebar ──
+      function updateSidebar() {
+        ["전체", "개발", "일상", "독서", "여행", "기타"].forEach((c) => {
+          const el = document.getElementById("cat-" + c);
+          const cnt = document.getElementById("cnt-" + c);
+          if (!el) return;
+          el.classList.toggle("active", currentCategory === c);
+          cnt.textContent =
+            c === "전체"
+              ? posts.length
+              : posts.filter((p) => p.category === c).length;
+        });
+        const allTags = [...new Set(posts.flatMap((p) => p.tags || []))];
+        document.getElementById("tagCloud").innerHTML = allTags
+          .map(
+            (t) =>
+              `<span class="tag${currentSearch === t ? " active" : ""}" onclick="searchTag('${t}')">${t}</span>`,
+          )
+          .join("");
+        document.getElementById("statTotal").textContent = posts.length;
+        const mo = new Date().toISOString().slice(0, 7);
+        document.getElementById("statMonth").textContent = posts.filter((p) =>
+          p.date?.startsWith(mo),
+        ).length;
+        document.getElementById("statTags").textContent = allTags.length;
+      }
+      function filterCategory(cat) {
+        currentCategory = cat;
+        currentSearch = "";
+        document.getElementById("searchInput").value = "";
+        updateSidebar();
+        renderPosts();
+        switchPage("list");
+      }
+      function searchTag(tag) {
+        currentSearch = tag;
+        document.getElementById("searchInput").value = tag;
+        currentCategory = "전체";
+        updateSidebar();
+        renderPosts();
+        switchPage("list");
+      }
+
+      // ── List ──
+      function doSearch() {
+        currentSearch = document.getElementById("searchInput").value;
+        renderPosts();
+      }
+      function setView(v) {
+        currentView = v;
+        document
+          .getElementById("gridBtn")
+          .classList.toggle("active", v === "grid");
+        document
+          .getElementById("listBtn")
+          .classList.toggle("active", v === "list");
+        renderPosts();
+      }
+      function getFilteredPosts() {
+        let arr = [...posts];
+        if (currentCategory !== "전체")
+          arr = arr.filter((p) => p.category === currentCategory);
+        if (currentSearch) {
+          const q = currentSearch.toLowerCase();
+          arr = arr.filter(
+            (p) =>
+              p.title?.toLowerCase().includes(q) ||
+              p.body?.toLowerCase().includes(q) ||
+              p.summary?.toLowerCase().includes(q) ||
+              p.tags?.some((t) => t.toLowerCase().includes(q)),
+          );
+        }
+        const s = document.getElementById("sortSelect").value;
+        if (s === "newest") arr.sort((a, b) => b.date?.localeCompare(a.date));
+        else if (s === "oldest")
+          arr.sort((a, b) => a.date?.localeCompare(b.date));
+        else arr.sort((a, b) => a.title?.localeCompare(b.title));
+        return arr;
+      }
+      function renderPosts() {
+        updateSidebar();
+        const arr = getFilteredPosts();
+        const grid = document.getElementById("postsGrid");
+        const info = document.getElementById("resultsInfo");
+        info.innerHTML = currentSearch
+          ? `<strong>${arr.length}</strong>개의 검색 결과 — "${currentSearch}"`
+          : `총 <strong>${arr.length}</strong>편의 글`;
+        if (!arr.length) {
+          grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div>🔍</div><p>조건에 맞는 글이 없어요.</p></div>`;
+          return;
+        }
+        grid.className = `posts-grid${currentView === "list" ? " list-view" : ""}`;
+        grid.innerHTML = arr
+          .map((p) => {
+            const col = CAT_COLORS[p.category] || CAT_COLORS["기타"];
+            return `<div class="post-card" onclick="openPost(${p.id})">
+      <div class="post-card-meta">
+        <span class="post-cat-badge" style="background:${col.bg};color:${col.color}">${p.category}</span>
+        <span class="post-date">${p.date || ""}</span>
+      </div>
+      <h3>${p.title}</h3>
+      <p>${p.summary || p.body?.replace(/[#*`>\n]/g, " ").slice(0, 120) + "…" || ""}</p>
+      ${p.tags?.length ? `<div class="post-tags">${p.tags.map((t) => `<span class="post-tag">${t}</span>`).join("")}</div>` : ""}
+    </div>`;
+          })
+          .join("");
+      }
+
+      // ── Post detail ──
+      function openPost(id) {
+        const p = posts.find((x) => x.id === id);
+        if (!p) return;
+        currentPostId = id;
+        const col = CAT_COLORS[p.category] || CAT_COLORS["기타"];
+        document.getElementById("postViewMeta").innerHTML =
+          `<span class="post-cat-badge" style="background:${col.bg};color:${col.color}">${p.category}</span>`;
+        document.getElementById("postViewTitle").textContent = p.title;
+        document.getElementById("postViewInfo").innerHTML =
+          `<span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text-muted)">${p.date}</span>
+     ${p.tags?.map((t) => `<span class="post-tag">${t}</span>`).join("") || ""}`;
+        document.getElementById("postViewBody").innerHTML = renderMd(
+          p.body || "",
+        );
+        document.getElementById("postViewActions").innerHTML = isLoggedIn()
+          ? `<button class="btn btn-edit" onclick="editPost(${id})">✏️ 수정</button>
+       <button class="btn btn-danger" onclick="deletePost(${id})">🗑️ 삭제</button>`
+          : "";
+        switchPage("post");
+      }
+      function backToList() {
+        switchPage(prevPage || "list");
+      }
+      function editPost(id) {
+        if (!isLoggedIn()) {
+          openAuthModal();
+          return;
+        }
+        const p = posts.find((x) => x.id === id);
+        if (!p) return;
+        document.getElementById("writeTitle").textContent = "글 수정";
+        // Store filename so savePost can update the right file
+        document.getElementById("editId").value = p.filename || id + ".md";
+        document.getElementById("fTitle").value = p.title;
+        document.getElementById("fCat").value = p.category;
+        document.getElementById("fTags").value = (p.tags || []).join(", ");
+        document.getElementById("fSummary").value = p.summary || "";
+        document.getElementById("fBody").value = p.body || "";
+        switchPage("write");
+      }
+      async function deletePost(id) {
+        if (!isLoggedIn()) {
+          openAuthModal();
+          return;
+        }
+        const p = posts.find((x) => x.id === id);
+        if (
+          !confirm(
+            `"${p?.title || id}" 글을 삭제할까요?\nGitHub에서도 영구 삭제됩니다.`,
+          )
+        )
+          return;
+
+        const token = atob(sessionStorage.getItem(AUTH_KEY) || "");
+        const { repo, branch } = await getRepoInfo();
+        const filename = p?.filename || id + ".md";
+        const path = "_posts/" + filename;
+
+        const delBtn = document.querySelector("#postViewActions .btn-danger");
+        if (delBtn) {
+          delBtn.disabled = true;
+          delBtn.textContent = "삭제 중…";
+        }
+
+        try {
+          // Get SHA
+          const r = await fetch(
+            `https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`,
+            {
+              headers: {
+                Authorization: `token ${token}`,
+                Accept: "application/vnd.github.v3+json",
+              },
+            },
+          );
+          if (!r.ok) throw new Error("파일을 찾을 수 없습니다");
+          const { sha } = await r.json();
+          // Delete file
+          const dr = await fetch(
+            `https://api.github.com/repos/${repo}/contents/${path}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `token ${token}`,
+                "Content-Type": "application/json",
+                Accept: "application/vnd.github.v3+json",
+              },
+              body: JSON.stringify({
+                message: `글 삭제: ${p?.title || id}`,
+                sha,
+                branch,
+              }),
+            },
+          );
+          if (!dr.ok) {
+            const e = await dr.json();
+            throw new Error(e.message);
+          }
+          // Update manifest
+          await removeFromManifest(token, repo, branch, filename);
+          toast("글이 삭제되었습니다.");
+          setTimeout(async () => {
+            await loadPosts();
+            updateSidebar();
+            backToList();
+            renderPosts();
+          }, 1200);
+        } catch (e) {
+          toast("삭제 실패: " + e.message, "error");
+          if (delBtn) {
+            delBtn.disabled = false;
+            delBtn.textContent = "🗑️ 삭제";
+          }
+        }
+      }
+
+      async function removeFromManifest(token, repo, branch, filename) {
+        try {
+          const path = "_posts/manifest.json";
+          const res = await fetch(
+            `https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`,
+            { headers: { Authorization: `token ${token}` } },
+          );
+          if (!res.ok) return;
+          const d = await res.json();
+          const files = JSON.parse(atob(d.content.replace(/\n/g, ""))).filter(
+            (f) => f !== filename,
+          );
+          await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+            method: "PUT",
+            headers: {
+              Authorization: `token ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              message: "manifest 업데이트",
+              content: btoa(JSON.stringify(files, null, 2)),
+              sha: d.sha,
               branch,
-              changedFile,
-              isUpdate,
-            ) {
-              try {
-                const path = "_posts/manifest.json";
-                // Get current manifest
-                let files = [],
-                  sha;
-                const res = await fetch(
-                  `https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`,
-                  {
-                    headers: {
-                      Authorization: `token ${token}`,
-                      Accept: "application/vnd.github.v3+json",
-                    },
-                  },
-                );
-                if (res.ok) {
-                  const d = await res.json();
-                  sha = d.sha;
-                  files = JSON.parse(atob(d.content.replace(/\n/g, "")));
-                }
-                if (!isUpdate && !files.includes(changedFile))
-                  files.unshift(changedFile);
-                const payload = {
-                  message: "manifest 업데이트",
-                  content: btoa(JSON.stringify(files, null, 2)),
-                  branch,
-                  ...(sha ? { sha } : {}),
-                };
-                await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
-                  method: "PUT",
-                  headers: {
-                    Authorization: `token ${token}`,
-                    "Content-Type": "application/json",
-                    Accept: "application/vnd.github.v3+json",
-                  },
-                  body: JSON.stringify(payload),
-                });
-              } catch (e) {
-                console.warn("manifest update:", e);
-              }
-            }
+            }),
+          });
+        } catch (e) {
+          console.warn("removeFromManifest:", e);
+        }
+      }
 
-            // ── Calendar ──
-            function initCal() {
-              const n = new Date();
-              calYear = n.getFullYear();
-              calMonth = n.getMonth();
-            }
-            function calMove(dir) {
-              if (dir === 0) {
-                const n = new Date();
-                calYear = n.getFullYear();
-                calMonth = n.getMonth();
-              } else {
-                calMonth += dir;
-                if (calMonth > 11) {
-                  calMonth = 0;
-                  calYear++;
-                } else if (calMonth < 0) {
-                  calMonth = 11;
-                  calYear--;
-                }
-              }
-              renderCalendar();
-            }
-            function renderCalendar() {
-              const months = [
-                "1월",
-                "2월",
-                "3월",
-                "4월",
-                "5월",
-                "6월",
-                "7월",
-                "8월",
-                "9월",
-                "10월",
-                "11월",
-                "12월",
-              ];
-              document.getElementById("calTitle").textContent =
-                `${calYear}년 ${months[calMonth]}`;
-              const grid = document.getElementById("calGrid");
-              const today = new Date().toISOString().split("T")[0];
-              let html = ["일", "월", "화", "수", "목", "금", "토"]
-                .map((d) => `<div class="cal-day-label">${d}</div>`)
-                .join("");
-              const firstDay = new Date(calYear, calMonth, 1).getDay();
-              const dim = new Date(calYear, calMonth + 1, 0).getDate();
-              const prevDays = new Date(calYear, calMonth, 0).getDate();
-              for (let i = firstDay - 1; i >= 0; i--)
-                html += `<div class="cal-cell other-month"><div class="cal-date">${prevDays - i}</div></div>`;
-              for (let d = 1; d <= dim; d++) {
-                const ds = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-                const dp = posts.filter((p) => p.date === ds);
-                const it = ds === today;
-                html += `<div class="cal-cell${it ? " today" : ""}${dp.length ? " has-posts" : ""}"${dp.length ? ` onclick="showCalDetail('${ds}')"` : ""}><div class="cal-date">${d}</div>${
-                  dp.length
-                    ? `<div class="cal-dots">${dp.map(() => '<div class="cal-dot"></div>').join("")}</div>${dp
-                        .slice(0, 2)
-                        .map((p) => `<div class="cal-post-preview">${p.title}</div>`)
-                        .join("")}`
-                    : ""
-                }</div>`;
-              }
-              const rem = 42 - firstDay - dim;
-              for (let d = 1; d <= rem; d++)
-                html += `<div class="cal-cell other-month"><div class="cal-date">${d}</div></div>`;
-              grid.innerHTML = html;
-              document.getElementById("calDetail").style.display = "none";
-            }
-            function showCalDetail(ds) {
-              const dp = posts.filter((p) => p.date === ds);
-              if (!dp.length) return;
-              const el = document.getElementById("calDetail");
-              el.style.display = "block";
-              el.innerHTML =
-                `<h3>📅 ${ds} — ${dp.length}편의 글</h3>` +
-                dp
-                  .map((p) => {
-                    const col = CAT_COLORS[p.category] || CAT_COLORS["기타"];
-                    return `<div class="cal-detail-item" onclick="openPost(${p.id});switchPage('post')">
-            <span class="post-cat-badge" style="background:${col.bg};color:${col.color};padding:3px 8px;border-radius:8px;font-size:11px">${p.category}</span>
-            <h4>${p.title}</h4></div>`;
-                  })
-                  .join("");
-            }
+      // ── Write ──
+      function cancelWrite() {
+        if (!isLoggedIn()) {
+          switchPage("list");
+          return;
+        }
+        switchPage(prevPage || "list");
+        resetForm();
+      }
+      function resetForm() {
+        document.getElementById("writeTitle").textContent = "새 글 작성";
+        document.getElementById("editId").value = "";
+        ["fTitle", "fTags", "fSummary", "fBody"].forEach(
+          (id) => (document.getElementById(id).value = ""),
+        );
+        document.getElementById("fCat").value = "개발";
+      }
+      async function savePost() {
+        if (!isLoggedIn()) {
+          openAuthModal();
+          return;
+        }
+        const title = document.getElementById("fTitle").value.trim();
+        const body = document.getElementById("fBody").value.trim();
+        if (!title) {
+          toast("제목을 입력해주세요.", "error");
+          return;
+        }
+        if (!body) {
+          toast("본문을 입력해주세요.", "error");
+          return;
+        }
 
-            // ── Init ──
-            renderNavAuth();
-            initCal();
-            (async () => {
-              // Show loading state
-              document.getElementById("postsGrid").innerHTML =
-                '<div class="empty-state" style="grid-column:1/-1"><div class="spinner" style="width:32px;height:32px;margin:0 auto 12px"></div><p style="color:var(--text-muted)">글을 불러오는 중…</p></div>';
-              await loadPosts();
-              updateSidebar();
-              renderPosts();
-            })();
+        const category = document.getElementById("fCat").value;
+        const tags = document
+          .getElementById("fTags")
+          .value.split(",")
+          .map((t) => t.trim())
+          .filter(Boolean);
+        const summary = document.getElementById("fSummary").value.trim();
+        const today = new Date().toISOString().split("T")[0];
+        const editId = document.getElementById("editId").value;
+
+        // Build markdown file content with front-matter
+        const tagYaml = tags.map((t) => `  - ${t}`).join("\n");
+        const markdown = `---\ntitle: "${title.replace(/"/g, '\\"')}"\ncategory: ${category}\ntags:\n${tagYaml}\nsummary: "${summary.replace(/"/g, '\\"')}"\ndate: "${today}"\ndraft: false\n---\n\n${body}`;
+
+        const token = atob(sessionStorage.getItem(AUTH_KEY) || "");
+        if (!token) {
+          openAuthModal();
+          return;
+        }
+
+        // Get repo info from config
+        const { repo, branch } = await getRepoInfo();
+        if (!repo) {
+          toast(
+            "저장소 정보를 찾을 수 없습니다. admin/config.yml을 확인하세요.",
+            "error",
+          );
+          return;
+        }
+
+        // Save button state
+        const saveBtn = document.querySelector("#page-write .btn-primary");
+        const origText = saveBtn?.textContent;
+        if (saveBtn) {
+          saveBtn.disabled = true;
+          saveBtn.textContent = "GitHub에 저장 중…";
+        }
+
+        try {
+          let filename, sha;
+          if (editId && editId.endsWith(".md")) {
+            filename = editId.endsWith(".md") ? editId : editId + ".md";
+          } else {
+            // New file: date-slug.md
+            const slug = title
+              .toLowerCase()
+              .replace(/[^a-z0-9가-힣\s-]/g, "")
+              .trim()
+              .replace(/\s+/g, "-")
+              .slice(0, 50);
+            filename = `${today}-${slug || "post"}.md`;
+          }
+          const path = `_posts/${filename}`;
+
+          // Check if file exists (to get SHA for update)
+          const checkRes = await fetch(
+            `https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`,
+            {
+              headers: {
+                Authorization: `token ${token}`,
+                Accept: "application/vnd.github.v3+json",
+              },
+            },
+          );
+          if (checkRes.ok) {
+            const d = await checkRes.json();
+            sha = d.sha;
+          }
+
+          // Create or update file
+          const payload = {
+            message: sha ? `글 수정: ${title}` : `새 글: ${title}`,
+            content: btoa(unescape(encodeURIComponent(markdown))),
+            branch,
+            ...(sha ? { sha } : {}),
+          };
+          const putRes = await fetch(
+            `https://api.github.com/repos/${repo}/contents/${path}`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: `token ${token}`,
+                "Content-Type": "application/json",
+                Accept: "application/vnd.github.v3+json",
+              },
+              body: JSON.stringify(payload),
+            },
+          );
+          if (!putRes.ok) {
+            const err = await putRes.json();
+            throw new Error(err.message || "GitHub 저장 실패");
+          }
+
+          // Update manifest
+          await updateManifest(token, repo, branch, filename, !!sha);
+
+          toast(
+            sha
+              ? "✓ GitHub에 수정되었습니다!"
+              : "✓ GitHub에 새 글이 저장되었습니다!",
+          );
+          resetForm();
+
+          // Reload posts after short delay (GitHub needs a moment)
+          setTimeout(async () => {
+            await loadPosts();
+            updateSidebar();
+            renderPosts();
+            if (editId) {
+              const updated = posts.find(
+                (p) => p.id === filename.replace(".md", ""),
+              );
+              if (updated) openPost(updated.id);
+              else switchPage("list");
+            } else {
+              switchPage("list");
+            }
+          }, 1200);
+        } catch (e) {
+          toast("저장 실패: " + e.message, "error");
+        }
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = origText;
+        }
+      }
+
+      async function getRepoInfo() {
+        try {
+          const cfgRes = await fetch("/admin/config.yml");
+          if (!cfgRes.ok) return { repo: null, branch: "master" };
+          const text = await cfgRes.text();
+          const repoMatch = text.match(/repo:\s*([^\n]+)/);
+          const branchMatch = text.match(/branch:\s*([^\n]+)/);
+          return {
+            repo: repoMatch ? repoMatch[1].trim() : null,
+            branch: branchMatch ? branchMatch[1].trim() : "master",
+          };
+        } catch {
+          return { repo: null, branch: "master" };
+        }
+      }
+
+      async function updateManifest(
+        token,
+        repo,
+        branch,
+        changedFile,
+        isUpdate,
+      ) {
+        try {
+          const path = "_posts/manifest.json";
+          // Get current manifest
+          let files = [],
+            sha;
+          const res = await fetch(
+            `https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`,
+            {
+              headers: {
+                Authorization: `token ${token}`,
+                Accept: "application/vnd.github.v3+json",
+              },
+            },
+          );
+          if (res.ok) {
+            const d = await res.json();
+            sha = d.sha;
+            files = JSON.parse(atob(d.content.replace(/\n/g, "")));
+          }
+          if (!isUpdate && !files.includes(changedFile))
+            files.unshift(changedFile);
+          const payload = {
+            message: "manifest 업데이트",
+            content: btoa(JSON.stringify(files, null, 2)),
+            branch,
+            ...(sha ? { sha } : {}),
+          };
+          await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+            method: "PUT",
+            headers: {
+              Authorization: `token ${token}`,
+              "Content-Type": "application/json",
+              Accept: "application/vnd.github.v3+json",
+            },
+            body: JSON.stringify(payload),
+          });
+        } catch (e) {
+          console.warn("manifest update:", e);
+        }
+      }
+
+      // ── Calendar ──
+      function initCal() {
+        const n = new Date();
+        calYear = n.getFullYear();
+        calMonth = n.getMonth();
+      }
+      function calMove(dir) {
+        if (dir === 0) {
+          const n = new Date();
+          calYear = n.getFullYear();
+          calMonth = n.getMonth();
+        } else {
+          calMonth += dir;
+          if (calMonth > 11) {
+            calMonth = 0;
+            calYear++;
+          } else if (calMonth < 0) {
+            calMonth = 11;
+            calYear--;
+          }
+        }
+        renderCalendar();
+      }
+      function renderCalendar() {
+        const months = [
+          "1월",
+          "2월",
+          "3월",
+          "4월",
+          "5월",
+          "6월",
+          "7월",
+          "8월",
+          "9월",
+          "10월",
+          "11월",
+          "12월",
+        ];
+        document.getElementById("calTitle").textContent =
+          `${calYear}년 ${months[calMonth]}`;
+        const grid = document.getElementById("calGrid");
+        const today = new Date().toISOString().split("T")[0];
+        let html = ["일", "월", "화", "수", "목", "금", "토"]
+          .map((d) => `<div class="cal-day-label">${d}</div>`)
+          .join("");
+        const firstDay = new Date(calYear, calMonth, 1).getDay();
+        const dim = new Date(calYear, calMonth + 1, 0).getDate();
+        const prevDays = new Date(calYear, calMonth, 0).getDate();
+        for (let i = firstDay - 1; i >= 0; i--)
+          html += `<div class="cal-cell other-month"><div class="cal-date">${prevDays - i}</div></div>`;
+        for (let d = 1; d <= dim; d++) {
+          const ds = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+          const dp = posts.filter((p) => p.date === ds);
+          const it = ds === today;
+          html += `<div class="cal-cell${it ? " today" : ""}${dp.length ? " has-posts" : ""}"${dp.length ? ` onclick="showCalDetail('${ds}')"` : ""}><div class="cal-date">${d}</div>${
+            dp.length
+              ? `<div class="cal-dots">${dp.map(() => '<div class="cal-dot"></div>').join("")}</div>${dp
+                  .slice(0, 2)
+                  .map((p) => `<div class="cal-post-preview">${p.title}</div>`)
+                  .join("")}`
+              : ""
+          }</div>`;
+        }
+        const rem = 42 - firstDay - dim;
+        for (let d = 1; d <= rem; d++)
+          html += `<div class="cal-cell other-month"><div class="cal-date">${d}</div></div>`;
+        grid.innerHTML = html;
+        document.getElementById("calDetail").style.display = "none";
+      }
+      function showCalDetail(ds) {
+        const dp = posts.filter((p) => p.date === ds);
+        if (!dp.length) return;
+        const el = document.getElementById("calDetail");
+        el.style.display = "block";
+        el.innerHTML =
+          `<h3>📅 ${ds} — ${dp.length}편의 글</h3>` +
+          dp
+            .map((p) => {
+              const col = CAT_COLORS[p.category] || CAT_COLORS["기타"];
+              return `<div class="cal-detail-item" onclick="openPost(${p.id});switchPage('post')">
+      <span class="post-cat-badge" style="background:${col.bg};color:${col.color};padding:3px 8px;border-radius:8px;font-size:11px">${p.category}</span>
+      <h4>${p.title}</h4></div>`;
+            })
+            .join("");
+      }
+
+      // ── Init ──
+      renderNavAuth();
+      initCal();
+      (async () => {
+        // Show loading state
+        document.getElementById("postsGrid").innerHTML =
+          '<div class="empty-state" style="grid-column:1/-1"><div class="spinner" style="width:32px;height:32px;margin:0 auto 12px"></div><p style="color:var(--text-muted)">글을 불러오는 중…</p></div>';
+        await loadPosts();
+        updateSidebar();
+        renderPosts();
+      })();
     </script>
   </body>
 </html>
