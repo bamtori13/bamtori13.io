@@ -1,0 +1,33 @@
+# ────────────────────────────────────────────────────────────────
+# Netlify 배포 설정
+# ────────────────────────────────────────────────────────────────
+
+[build]
+  publish = "."          # 정적 파일 루트 (빌드 없음, 파일 그대로 배포)
+  command = ""           # 빌드 명령 없음 (순수 정적)
+
+# ── Netlify Identity / Git Gateway 리다이렉트 ──────────────────
+[[redirects]]
+  from = "/api/auth"
+  to = "/.netlify/identity"
+  status = 200
+
+# ── 모든 경로를 index.html로 (SPA 라우팅) ──────────────────────
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# ── 보안 헤더 ─────────────────────────────────────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# admin 페이지는 캐싱 안 함
+[[headers]]
+  for = "/admin/*"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"

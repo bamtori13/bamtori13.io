@@ -542,8 +542,10 @@ nav {
             <span style="color:var(--text)">마크다운</span> — # 제목 &nbsp; **굵게** &nbsp; *기울임* &nbsp; `코드` &nbsp; > 인용구 &nbsp; - 목록<br><br>
             <span style="color:var(--accent)">차트 블록 (Python · matplotlib · numpy)</span><br>
             ```python ... ``` 코드 블록 안에 matplotlib 코드를 작성하세요.<br>
-            글 본문에서 ▶ 실행 버튼으로 그래프를 바로 그릴 수 있어요.<br>
-            마지막 줄에 반드시 <span style="color:var(--accent)">plt.show()</span> 를 포함해야 합니다.
+            마지막 줄에 반드시 <span style="color:var(--accent)">plt.show()</span> 를 포함해야 합니다.<br><br>
+            <span style="color:var(--text)">GitHub 저장</span> — 저장 버튼을 누르면 <code>_posts/</code> 폴더에<br>
+            마크다운 파일로 GitHub 저장소에 직접 커밋됩니다.<br>
+            <span style="color:#e05">⚠ admin/config.yml 의 <strong>repo: 소유자/저장소명</strong> 을 먼저 설정하세요.</span>
           </div>
         </div>
       </div>
@@ -699,31 +701,74 @@ const CAT_COLORS={
   '여행':{bg:'rgba(255,180,50,0.12)', color:'#ffb432'},
   '기타':{bg:'rgba(150,150,170,0.12)',color:'#9696aa'},
 };
-let posts=JSON.parse(localStorage.getItem('blog_posts')||'[]');
+// ── Posts state — loaded dynamically from _posts/*.md ──
+let posts = [];
 let currentCategory='전체',currentSearch='',currentView='grid';
 let currentPostId=null,calYear,calMonth,prevPage='list';
 
-if(!posts.length){
-  const now=new Date();
-  const d=o=>new Date(now.getFullYear(),now.getMonth(),now.getDate()+o).toISOString().split('T')[0];
-  posts=[
-    {id:1,title:'GitHub Pages 블로그 시작하기',category:'개발',tags:['GitHub','Blog','정적사이트'],
-     summary:'GitHub Pages로 무료 블로그를 만드는 완전한 가이드',date:d(-2),
-     body:`# GitHub Pages 블로그 시작하기\n\nGitHub Pages는 GitHub 저장소에서 직접 웹사이트를 호스팅할 수 있는 무료 서비스입니다.\n\n## 왜 GitHub Pages인가?\n\n- **무료 호스팅**: 광고 없이 완전 무료\n- **커스텀 도메인**: 자신만의 도메인 연결 가능\n- **버전 관리**: Git으로 모든 변경사항 추적\n- **빠른 배포**: push만 하면 자동 반영\n\n> 이 템플릿은 별도 빌드 없이 index.html 하나로 동작합니다.\n\n\`\`\`javascript\nconst posts = [\n  { id:1, title:'첫 번째 글', category:'개발' }\n];\n\`\`\``},
-    {id:2,title:'Python 데이터 시각화 — matplotlib 실습',category:'개발',tags:['Python','matplotlib','numpy','데이터'],
-     summary:'블로그 본문에서 바로 실행하는 Python 차트 예제 모음',date:d(0),
-     body:`# Python 데이터 시각화 — matplotlib 실습\n\n이 블로그는 본문 안의 \`\`\`python 블록에 ▶ 실행 버튼이 생깁니다.\n아래 차트들을 직접 실행해보세요!\n\n## 사인 & 코사인 파형\n\n\`\`\`python\nimport matplotlib.pyplot as plt\nimport numpy as np\n\nx = np.linspace(0, 4 * np.pi, 300)\nfig, ax = plt.subplots(figsize=(8, 4))\nax.plot(x, np.sin(x), label='sin(x)', linewidth=2, color='#7c6cff')\nax.plot(x, np.cos(x), label='cos(x)', linewidth=2, linestyle='--', color='#ff6b35')\nax.set_title('사인 & 코사인 파형', fontsize=14)\nax.legend(); ax.grid(True, alpha=0.3)\nplt.tight_layout()\nplt.show()\n\`\`\`\n\n## 월별 커밋 수\n\n\`\`\`python\nimport matplotlib.pyplot as plt\nimport numpy as np\n\nmonths = ['Jan','Feb','Mar','Apr','May','Jun']\ncommits = [23, 45, 38, 62, 55, 71]\ncolors = ['#7c6cff' if c == max(commits) else '#a09aff' for c in commits]\n\nfig, ax = plt.subplots(figsize=(8, 4))\nbars = ax.bar(months, commits, color=colors, width=0.6)\nfor bar, val in zip(bars, commits):\n    ax.text(bar.get_x() + bar.get_width()/2, bar.get_height()+1,\n            str(val), ha='center', va='bottom', fontsize=11)\nax.set_title('월별 GitHub 커밋 수', fontsize=14)\nax.set_ylabel('Commits')\nax.spines['top'].set_visible(False)\nax.spines['right'].set_visible(False)\nplt.tight_layout()\nplt.show()\n\`\`\`\n\n## 머신러닝 학습 곡선\n\n\`\`\`python\nimport matplotlib.pyplot as plt\nimport numpy as np\n\nnp.random.seed(42)\nepochs = np.arange(1, 51)\ntrain_loss = np.clip(np.exp(-0.07*epochs) + 0.02*np.random.randn(50), 0, None)\nval_loss   = np.clip(np.exp(-0.05*epochs) + 0.08 + 0.03*np.random.randn(50), 0, None)\n\nfig, ax = plt.subplots(figsize=(8, 4))\nax.plot(epochs, train_loss, label='Train Loss', linewidth=2, color='#7c6cff')\nax.plot(epochs, val_loss,   label='Val Loss',   linewidth=2, color='#ff6b35', linestyle='--')\nax.fill_between(epochs, train_loss, val_loss, alpha=0.08, color='gray')\nax.set_xlabel('Epoch'); ax.set_ylabel('Loss')\nax.set_title('모델 학습 곡선', fontsize=14)\nax.legend(); ax.grid(True, alpha=0.25)\nplt.tight_layout()\nplt.show()\n\`\`\``},
-    {id:3,title:'독서 기록 — 2024 상반기',category:'독서',tags:['독서','책추천','2024'],
-     summary:'올해 상반기에 읽은 책들을 돌아봤습니다',date:d(-8),
-     body:`# 독서 기록 — 2024 상반기\n\n기술서와 인문학의 균형을 의식적으로 맞추려 했습니다.\n\n## 기술 서적\n\n- **클린 코드** — 로버트 C. 마틴\n- **리팩터링** — 마틴 파울러\n- **함께 자라기** — 김창준\n\n## 인문학\n\n- **사피엔스** — 유발 하라리\n- **총, 균, 쇠** — 재레드 다이아몬드\n\n> 독서는 가장 저렴한 여행입니다.`},
-    {id:4,title:'제주도 3박4일 여행기',category:'여행',tags:['제주도','국내여행','힐링'],
-     summary:'홀로 떠난 제주도에서 보낸 사흘간의 기록',date:d(-1),
-     body:`# 제주도 3박4일 여행기\n\n렌트카를 빌려 섬 전체를 돌아봤습니다.\n\n## 1일차\n\n성산일출봉과 우도를 방문했습니다.\n\n## 2일차: 한라산\n\n성판악 코스로 정상까지. 왕복 9시간이었지만 백록담은 정말 장관이었습니다.\n\n## 3일차: 서쪽\n\n- 협재해수욕장\n- 한림공원\n- 오설록 티뮤지엄\n\n> 제주는 계절마다 다른 얼굴을 보여줍니다.`},
-  ];
-  savePosts();
+// ── Front-matter parser (YAML subset) ──
+function parseFrontMatter(text) {
+  const m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  if (!m) return { meta:{}, body:text };
+  const rawYaml = m[1];
+  const body = m[2].trim();
+  const meta = {};
+  // Parse simple key: value pairs
+  rawYaml.split('\n').forEach(line => {
+    const kv = line.match(/^(\w+):\s*(.+)$/);
+    if (kv) {
+      let v = kv[2].trim().replace(/^["']|["']$/g,'');
+      if (v === 'true') v = true;
+      else if (v === 'false') v = false;
+      meta[kv[1]] = v;
+    }
+  });
+  // Parse tags list (YAML list format: "- tag")
+  const tagsBlock = rawYaml.match(/tags:[^\n]*\n((?:\s+-[^\n]+\n?)*)/);
+  if (tagsBlock) {
+    meta.tags = tagsBlock[1].match(/^\s+-\s+(.+)$/gm)?.map(l=>l.replace(/^\s+-\s+/,'').trim()) || [];
+  }
+  if (!Array.isArray(meta.tags)) meta.tags = meta.tags ? [String(meta.tags)] : [];
+  return { meta, body };
 }
 
-function savePosts(){localStorage.setItem('blog_posts',JSON.stringify(posts));}
+// ── Load all posts from _posts/ via manifest ──
+async function loadPosts() {
+  try {
+    let files = [];
+    const mRes = await fetch('/_posts/manifest.json?v=' + Date.now());
+    if (mRes.ok) {
+      files = await mRes.json();  // ["2026-04-12-foo.md", ...]
+    } else {
+      // Fallback list for local dev / first deploy
+      files = ['2026-04-12-python-visualization.md', '2026-04-10-github-pages-guide.md'];
+    }
+    const loaded = await Promise.all(files.map(async filename => {
+      try {
+        const res = await fetch('/_posts/' + filename);
+        if (!res.ok) return null;
+        const { meta, body } = parseFrontMatter(await res.text());
+        if (meta.draft === true) return null;
+        return {
+          id: filename.replace('.md',''),
+          title: meta.title || '제목 없음',
+          category: meta.category || '기타',
+          tags: meta.tags || [],
+          summary: meta.summary || '',
+          date: meta.date ? String(meta.date).slice(0,10) : '',
+          body, filename,
+        };
+      } catch { return null; }
+    }));
+    posts = loaded.filter(Boolean).sort((a,b) => b.date.localeCompare(a.date));
+  } catch(e) {
+    console.warn('loadPosts:', e);
+    posts = [];
+  }
+}
+
+// savePosts is a no-op — Netlify CMS writes markdown to GitHub directly
+function savePosts() { /* Netlify CMS → GitHub commit handles persistence */ }
 
 // ── Markdown + Chart Renderer ──
 let _chartCnt=0;
@@ -935,7 +980,8 @@ function editPost(id){
   if(!isLoggedIn()){openAuthModal();return;}
   const p=posts.find(x=>x.id===id);if(!p)return;
   document.getElementById('writeTitle').textContent='글 수정';
-  document.getElementById('editId').value=id;
+  // Store filename so savePost can update the right file
+  document.getElementById('editId').value=p.filename||id+'.md';
   document.getElementById('fTitle').value=p.title;
   document.getElementById('fCat').value=p.category;
   document.getElementById('fTags').value=(p.tags||[]).join(', ');
@@ -943,11 +989,52 @@ function editPost(id){
   document.getElementById('fBody').value=p.body||'';
   switchPage('write');
 }
-function deletePost(id){
+async function deletePost(id){
   if(!isLoggedIn()){openAuthModal();return;}
-  if(!confirm('정말 삭제하시겠어요?'))return;
-  posts=posts.filter(p=>p.id!==id);savePosts();
-  toast('글이 삭제되었습니다.');backToList();renderPosts();
+  const p=posts.find(x=>x.id===id);
+  if(!confirm(`"${p?.title||id}" 글을 삭제할까요?\nGitHub에서도 영구 삭제됩니다.`))return;
+
+  const token=atob(sessionStorage.getItem(AUTH_KEY)||'');
+  const {repo,branch}=await getRepoInfo();
+  const filename=p?.filename||id+'.md';
+  const path='_posts/'+filename;
+
+  const delBtn=document.querySelector('#postViewActions .btn-danger');
+  if(delBtn){delBtn.disabled=true;delBtn.textContent='삭제 중…';}
+
+  try{
+    // Get SHA
+    const r=await fetch(`https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`,
+      {headers:{Authorization:`token ${token}`,'Accept':'application/vnd.github.v3+json'}});
+    if(!r.ok)throw new Error('파일을 찾을 수 없습니다');
+    const {sha}=await r.json();
+    // Delete file
+    const dr=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,
+      {method:'DELETE',headers:{Authorization:`token ${token}`,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
+       body:JSON.stringify({message:`글 삭제: ${p?.title||id}`,sha,branch})});
+    if(!dr.ok){const e=await dr.json();throw new Error(e.message);}
+    // Update manifest
+    await removeFromManifest(token,repo,branch,filename);
+    toast('글이 삭제되었습니다.');
+    setTimeout(async()=>{await loadPosts();updateSidebar();backToList();renderPosts();},1200);
+  }catch(e){
+    toast('삭제 실패: '+e.message,'error');
+    if(delBtn){delBtn.disabled=false;delBtn.textContent='🗑️ 삭제';}
+  }
+}
+
+async function removeFromManifest(token,repo,branch,filename){
+  try{
+    const path='_posts/manifest.json';
+    const res=await fetch(`https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`,
+      {headers:{Authorization:`token ${token}`}});
+    if(!res.ok)return;
+    const d=await res.json();
+    const files=JSON.parse(atob(d.content.replace(/\n/g,''))).filter(f=>f!==filename);
+    await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,
+      {method:'PUT',headers:{Authorization:`token ${token}`,'Content-Type':'application/json'},
+       body:JSON.stringify({message:'manifest 업데이트',content:btoa(JSON.stringify(files,null,2)),sha:d.sha,branch})});
+  }catch(e){console.warn('removeFromManifest:',e);}
 }
 
 // ── Write ──
@@ -958,24 +1045,138 @@ function resetForm(){
   ['fTitle','fTags','fSummary','fBody'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fCat').value='개발';
 }
-function savePost(){
+async function savePost(){
   if(!isLoggedIn()){openAuthModal();return;}
   const title=document.getElementById('fTitle').value.trim();
   const body=document.getElementById('fBody').value.trim();
   if(!title){toast('제목을 입력해주세요.','error');return;}
   if(!body){toast('본문을 입력해주세요.','error');return;}
-  const editId=parseInt(document.getElementById('editId').value);
-  const tags=document.getElementById('fTags').value.split(',').map(t=>t.trim()).filter(Boolean);
-  const today=new Date().toISOString().split('T')[0];
-  if(editId){
-    const idx=posts.findIndex(p=>p.id===editId);
-    if(idx>=0){
-      posts[idx]={...posts[idx],title,body,category:document.getElementById('fCat').value,tags,summary:document.getElementById('fSummary').value};
-      toast('글이 수정되었습니다!');savePosts();resetForm();openPost(editId);return;
-    }
+
+  const category = document.getElementById('fCat').value;
+  const tags = document.getElementById('fTags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  const summary = document.getElementById('fSummary').value.trim();
+  const today = new Date().toISOString().split('T')[0];
+  const editId = document.getElementById('editId').value;
+
+  // Build markdown file content with front-matter
+  const tagYaml = tags.map(t=>`  - ${t}`).join('\n');
+  const markdown = `---\ntitle: "${title.replace(/"/g,'\\"')}"\ncategory: ${category}\ntags:\n${tagYaml}\nsummary: "${summary.replace(/"/g,'\\"')}"\ndate: "${today}"\ndraft: false\n---\n\n${body}`;
+
+  const token = atob(sessionStorage.getItem(AUTH_KEY)||'');
+  if(!token){openAuthModal();return;}
+
+  // Get repo info from config
+  const {repo, branch} = await getRepoInfo();
+  if(!repo){
+    toast('저장소 정보를 찾을 수 없습니다. admin/config.yml을 확인하세요.','error');
+    return;
   }
-  posts.unshift({id:Date.now(),title,body,category:document.getElementById('fCat').value,tags,summary:document.getElementById('fSummary').value,date:today});
-  savePosts();toast('글이 저장되었습니다!');resetForm();switchPage('list');renderPosts();
+
+  // Save button state
+  const saveBtn = document.querySelector('#page-write .btn-primary');
+  const origText = saveBtn?.textContent;
+  if(saveBtn){saveBtn.disabled=true;saveBtn.textContent='GitHub에 저장 중…';}
+
+  try {
+    let filename, sha;
+    if(editId && editId.endsWith('.md')) {
+      filename = editId.endsWith('.md') ? editId : editId+'.md';
+    } else {
+      // New file: date-slug.md
+      const slug = title.toLowerCase()
+        .replace(/[^a-z0-9가-힣\s-]/g,'')
+        .trim().replace(/\s+/g,'-').slice(0,50);
+      filename = `${today}-${slug || 'post'}.md`;
+    }
+    const path = `_posts/${filename}`;
+
+    // Check if file exists (to get SHA for update)
+    const checkRes = await fetch(
+      `https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`,
+      {headers:{Authorization:`token ${token}`,'Accept':'application/vnd.github.v3+json'}}
+    );
+    if(checkRes.ok){ const d=await checkRes.json(); sha=d.sha; }
+
+    // Create or update file
+    const payload = {
+      message: sha ? `글 수정: ${title}` : `새 글: ${title}`,
+      content: btoa(unescape(encodeURIComponent(markdown))),
+      branch,
+      ...(sha ? {sha} : {})
+    };
+    const putRes = await fetch(
+      `https://api.github.com/repos/${repo}/contents/${path}`,
+      {method:'PUT',headers:{Authorization:`token ${token}`,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
+       body:JSON.stringify(payload)}
+    );
+    if(!putRes.ok){
+      const err=await putRes.json();
+      throw new Error(err.message||'GitHub 저장 실패');
+    }
+
+    // Update manifest
+    await updateManifest(token, repo, branch, filename, !!sha);
+
+    toast(sha ? '✓ GitHub에 수정되었습니다!' : '✓ GitHub에 새 글이 저장되었습니다!');
+    resetForm();
+
+    // Reload posts after short delay (GitHub needs a moment)
+    setTimeout(async()=>{
+      await loadPosts();
+      updateSidebar();
+      renderPosts();
+      if(editId){
+        const updated=posts.find(p=>p.id===filename.replace('.md',''));
+        if(updated)openPost(updated.id);
+        else switchPage('list');
+      } else {
+        switchPage('list');
+      }
+    }, 1200);
+
+  } catch(e) {
+    toast('저장 실패: '+e.message,'error');
+  }
+  if(saveBtn){saveBtn.disabled=false;saveBtn.textContent=origText;}
+}
+
+async function getRepoInfo(){
+  try{
+    const cfgRes=await fetch('/admin/config.yml');
+    if(!cfgRes.ok)return{repo:null,branch:'main'};
+    const text=await cfgRes.text();
+    const repoMatch=text.match(/repo:\s*([^\n]+)/);
+    const branchMatch=text.match(/branch:\s*([^\n]+)/);
+    return{
+      repo:repoMatch?repoMatch[1].trim():null,
+      branch:branchMatch?branchMatch[1].trim():'main'
+    };
+  }catch{return{repo:null,branch:'main'};}
+}
+
+async function updateManifest(token, repo, branch, changedFile, isUpdate){
+  try{
+    const path='_posts/manifest.json';
+    // Get current manifest
+    let files=[], sha;
+    const res=await fetch(`https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`,
+      {headers:{Authorization:`token ${token}`,'Accept':'application/vnd.github.v3+json'}});
+    if(res.ok){
+      const d=await res.json();
+      sha=d.sha;
+      files=JSON.parse(atob(d.content.replace(/\n/g,'')));
+    }
+    if(!isUpdate && !files.includes(changedFile)) files.unshift(changedFile);
+    const payload={
+      message:'manifest 업데이트',
+      content:btoa(JSON.stringify(files,null,2)),
+      branch,
+      ...(sha?{sha}:{})
+    };
+    await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,
+      {method:'PUT',headers:{Authorization:`token ${token}`,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
+       body:JSON.stringify(payload)});
+  }catch(e){console.warn('manifest update:',e);}
 }
 
 // ── Calendar ──
@@ -1018,7 +1219,16 @@ function showCalDetail(ds){
 }
 
 // ── Init ──
-renderNavAuth();initCal();updateSidebar();renderPosts();
+renderNavAuth();
+initCal();
+(async () => {
+  // Show loading state
+  document.getElementById('postsGrid').innerHTML =
+    '<div class="empty-state" style="grid-column:1/-1"><div class="spinner" style="width:32px;height:32px;margin:0 auto 12px"></div><p style="color:var(--text-muted)">글을 불러오는 중…</p></div>';
+  await loadPosts();
+  updateSidebar();
+  renderPosts();
+})();
 </script>
 </body>
 </html>
