@@ -9,6 +9,7 @@
       href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
+    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
     <style>
       :root {
         --sidebar-w: 280px;
@@ -1606,37 +1607,15 @@
       }
 
       async function doLogin() {
-        const btn = document.getElementById("loginBtn");
-        const errEl = document.getElementById("authError");
-        const token = document.getElementById("patInput").value.trim();
-        errEl.classList.remove("show");
-        if (!token) {
-          errEl.textContent = "토큰을 입력해주세요.";
-          errEl.classList.add("show");
-          return;
+        if (window.netlifyIdentity) {
+          window.netlifyIdentity.on("init", (user) => {
+            if (!user) {
+              window.netlifyIdentity.on("login", () => {
+                document.location.href = "/admin/";
+              });
+            }
+          });
         }
-        btn.disabled = true;
-        btn.textContent = "확인 중…";
-        try {
-          const user = await verifyPAT(token);
-          // Store token encrypted-ish in sessionStorage (only lasts the browser session)
-          sessionStorage.setItem(AUTH_KEY, btoa(token));
-          _ghUser = {
-            login: user.login,
-            name: user.name || user.login,
-            avatar: user.avatar_url,
-          };
-          sessionStorage.setItem(USER_KEY, JSON.stringify(_ghUser));
-          closeAuthModal();
-          renderNavAuth();
-          renderPosts(); // re-render to show edit buttons where needed
-          toast("👋 " + _ghUser.name + " 으로 로그인되었습니다!");
-        } catch (e) {
-          errEl.textContent = e.message;
-          errEl.classList.add("show");
-        }
-        btn.disabled = false;
-        btn.textContent = "확인 & 로그인";
       }
 
       function doLogout() {
