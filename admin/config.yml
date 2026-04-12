@@ -4,8 +4,8 @@
 # ────────────────────────────────────────────────────────────────
 
 backend:
-  name: git-gateway          # Netlify Identity + Git Gateway 사용
-  branch: master               # 글이 저장될 브랜치 (main 또는 master)
+  name: git-gateway # Netlify Identity + Git Gateway 사용
+  branch: master # 글이 저장될 브랜치 (main 또는 master)
 
 # 미디어 파일 (이미지 등) 저장 위치
 media_folder: "static/uploads"
@@ -19,13 +19,13 @@ collections:
   - name: "posts"
     label: "블로그 글"
     label_singular: "글"
-    folder: "_posts"          # 마크다운 파일이 저장될 폴더
-    create: true              # 새 글 생성 허용
-    delete: true              # 글 삭제 허용
-    slug: "{{year}}-{{month}}-{{day}}-{{slug}}"   # 파일명 형식
+    folder: "_posts" # 마크다운 파일이 저장될 폴더
+    create: true # 새 글 생성 허용
+    delete: true # 글 삭제 허용
+    slug: "{{year}}-{{month}}-{{day}}-{{slug}}" # 파일명 형식
     preview_path: "/#post-{{slug}}"
     editor:
-      preview: false          # 미리보기 패널 (필요시 true)
+      preview: false # 미리보기 패널 (필요시 true)
 
     fields:
       - label: "제목"
@@ -63,10 +63,9 @@ collections:
         date_format: "YYYY-MM-DD"
         time_format: false
 
-      - label: "공개"
+      - label: "초안 (비공개)"
         name: "draft"
         widget: "boolean"
-        label: "초안 (비공개)"
         default: false
         required: false
 
@@ -74,4 +73,4 @@ collections:
         name: "body"
         widget: "markdown"
         hint: "마크다운 작성 가능. ```python 코드 블록은 블로그에서 실행 버튼이 생깁니다."
-        modes: ["raw", "rich_text"]    # raw 모드에서 matplotlib 코드블록 작성 권장
+        modes: ["raw", "rich_text"] # raw 모드에서 matplotlib 코드블록 작성 권장
