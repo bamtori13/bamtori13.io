@@ -2382,16 +2382,16 @@ plt.show=_show
       async function getRepoInfo() {
         try {
           const cfgRes = await fetch("/admin/config.yml");
-          if (!cfgRes.ok) return { repo: null, branch: "main" };
+          if (!cfgRes.ok) return { repo: null, branch: "master" };
           const text = await cfgRes.text();
           const repoMatch = text.match(/repo:\s*([^\n]+)/);
           const branchMatch = text.match(/branch:\s*([^\n]+)/);
           return {
             repo: repoMatch ? repoMatch[1].trim() : null,
-            branch: branchMatch ? branchMatch[1].trim() : "main",
+            branch: branchMatch ? branchMatch[1].trim() : "master",
           };
         } catch {
-          return { repo: null, branch: "main" };
+          return { repo: null, branch: "master" };
         }
       }
 
