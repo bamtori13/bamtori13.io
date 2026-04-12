@@ -1575,22 +1575,6 @@
         toast("로그아웃 되었습니다.");
       }
 
-      function openAuthModal() {
-        document.getElementById("patInput").value = "";
-        document.getElementById("authError").classList.remove("show");
-        document.getElementById("authModal").classList.add("show");
-        setTimeout(() => document.getElementById("patInput").focus(), 100);
-      }
-      function closeAuthModal() {
-        document.getElementById("authModal").classList.remove("show");
-      }
-      // Close on overlay click
-      document
-        .getElementById("authModal")
-        .addEventListener("click", function (e) {
-          if (e.target === this) closeAuthModal();
-        });
-
       function togglePATVisibility() {
         const inp = document.getElementById("patInput");
         const icon = document.getElementById("eyeIcon");
